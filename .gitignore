@@ -11,3 +11,4 @@ venv/
 *.log
 data/
 sms_spam_collection/
+instruction-data.json
