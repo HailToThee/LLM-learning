@@ -14,7 +14,7 @@ import tensorflow as tf
 from tqdm import tqdm
 
 
-def download_and_load_gpt2(model_size, models_dir):
+def download_and_load_gpt2(model_size, models_dir, proxy=None):
     # Validate model size
     allowed_sizes = ("124M", "355M", "774M", "1558M")
     if model_size not in allowed_sizes:
@@ -36,7 +36,7 @@ def download_and_load_gpt2(model_size, models_dir):
         file_url = os.path.join(base_url, model_size, filename)
         backup_url = os.path.join(backup_base_url, model_size, filename)
         file_path = os.path.join(model_dir, filename)
-        download_file(file_url, file_path, backup_url)
+        download_file(file_url, file_path, backup_url, proxy=proxy)
 
     # Load settings and params
     tf_ckpt_path = tf.train.latest_checkpoint(model_dir)
@@ -46,9 +46,15 @@ def download_and_load_gpt2(model_size, models_dir):
     return settings, params
 
 
-def download_file(url, destination, backup_url=None):
+def download_file(url, destination, backup_url=None, proxy=None):
     def _attempt_download(download_url):
-        with urllib.request.urlopen(download_url) as response:
+        if proxy:
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({'http': proxy, 'https': proxy}))
+            response = opener.open(download_url)
+        else:
+            response = urllib.request.urlopen(download_url)
+
+        with response:
             # Get the total file size from headers, defaulting to 0 if not present
             file_size = int(response.headers.get("Content-Length", 0))
 
