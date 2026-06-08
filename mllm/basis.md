@@ -55,6 +55,15 @@ usually take [CLS] token as the representation of the whole sequence, then we ca
 $$p_{ij} = \sigma(W h_{ij}^{[CLS]} + b)$$
 $$\mathcal{L}_{ITM} = -\frac{1}{\mathcal{P}}\sum_{i,j} y_{ij} \log p_{ij} + (1-y_{ij}) \log (1-p_{ij})$$
 
+<font color = red>**hard negative**</font>
+
+$$\mathcal{B} = \{I_i, T_j\}^N_{i,j = 1}$$
+$$S_{ij} = f_\theta(I_i)^\top g_\phi(T_j)\quad normalized$$
+
+$$T_{hard}^{i} = \arg\max_{j\neq i} S_{ij}, \quad I_{hard}^{i} = \arg\max_{j\neq i} S_{ji}$$
+Note may not use argmax for is too hard.
+use $p_{ij} = \frac{\exp(S_{ij}/\tau)}{\sum_{k\neq i}^N \exp(S_{ik}/\tau)}$ and select by probability. more stable.
+$$\mathcal{L} = -\sum_{i=1}^N[\log p(I_i, T_i)+\log (1-p(I_i, T_{hard}^{i}))+\log (1-p(I_{hard}^{i}, T_{i}))]$$
 #### MLM: masked language modeling loss
 MLM loss: given a text, mask some tokens and predict the masked tokens, which is like Bert's pretraining task.
 let the original text token:
@@ -72,3 +81,26 @@ $$Y = \{y_1, y_2, \ldots, y_N\}$$
 then we can use the cross-entropy loss to train the model:
 $$\mathcal{L}_{LM} = -\frac{1}{N}\sum_{i=1}^N \log p(y_i | Y_{<i}, X)$$
 where $Y_{<i}$ represents the text token before the $i$-th token, and $X$ represents the image token.
+
+
+# Basis of attack
+Base attack methods can be categorized into three types.
+### Math presentation
+#### Untargeted attack:
+$$\max_{\delta} \mathcal{L}(f_\theta(x+\delta), y)$$
+can be acheived with Tylor expansion:
+$$\mathcal{L}(f_\theta(x+\delta), y) \approx \mathcal{L}(f_\theta(x), y) + \nabla_x \mathcal{L}(f_\theta(x), y)^\top \delta$$
+
+#### Targeted attack:
+$$\min_{\delta} \mathcal{L}(f_\theta(x+\delta), y_{target})$$
+can be acheived with Tylor expansion:
+$$\mathcal{L}(f_\theta(x+\delta), y_{target}) \approx \mathcal{L}(f_\theta(x), y_{target}) + \nabla_x \mathcal{L}(f_\theta(x), y_{target})^\top \delta$$
+
+#### Jailbreak/harmful generating
+introduce a perturbation $\delta$ to the input $x$ to make the model generate harmful content $y_i$. Which is like the **LM loss** we have mentioned above.
+$$\argmax_{\delta} P(y_i|f_\theta(x+\delta,\theta))$$
+$y_i$ represents the harmful content we want to generate, and $x$ represents the input, which can be text or image.
+
+**loss function**:
+cross-entropy loss:
+$$\mathcal{L} = \sum_i-\log P(y_i|f_\theta(x+\delta,\theta))$$
