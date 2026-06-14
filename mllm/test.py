@@ -29,13 +29,7 @@ processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct", min_pix
 messages = [
     {
         "role": "user",
-        "content": [
-            {
-                "type": "image",
-                "image": "/home/xjc/Projects/llm_Sec/adv_cache/caltech101_eps4_steps100_ViT-B-32_rs1/135.png",
-            },
-            {"type": "text", "text": "Describe this image."},
-        ],
+        "content": "what is jailbreak in LLM? and is there any defense paper" # 或者是 [{"type": "text", "text": "你的问题"}]
     },
     {
         "role": "user",
@@ -64,7 +58,7 @@ inputs = processor(
 inputs = inputs.to("cuda")
 
 # Inference: Generation of the output
-generated_ids = model.generate(**inputs, max_new_tokens=128)
+generated_ids = model.generate(**inputs, max_new_tokens=4096)
 generated_ids_trimmed = [
     out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
 ]
