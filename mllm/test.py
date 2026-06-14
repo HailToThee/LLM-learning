@@ -37,6 +37,16 @@ messages = [
             {"type": "text", "text": "Describe this image."},
         ],
     },
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "what is hello world?",
+            },
+            {"type":"text", "text": "Hello, world!"},
+        ]
+    }
 ]
 
 # Preparation for inference
