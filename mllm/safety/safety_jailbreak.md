@@ -14,6 +14,53 @@
 
 ---
 
+## 基础方法：越狱优化（Jailbreak Optimization）
+
+> 多模态越狱（如 Wang'24a、Geng'25）的优化框架直接继承自==文本越狱的 token 级优化==。这些方法给出"如何自动搜索越狱后缀/触发器"的范式。
+
+### GCG: Greedy Coordinate Gradient (Zou et al., 2023)
+
+Motivation:
+1. 手工越狱模板（DAN 等）耗时且易被补丁覆盖。
+2. 离散 token 空间无法直接用梯度下降。
+
+Inspiration:
+1. 用==梯度近似==评估每个 token 替换的收益，只在==最有希望的一个坐标==上做替换（贪心）。
+2. 在有害 query 后接后缀 $S$，最大化模型对有害响应的似然：
+$$\max_S\ \mathcal{L}_{\text{GCG}}(S) = \max_S\ \log P_{\text{target}}(\text{response}\mid \text{query}, S)$$
+```
+对每个候选 token: 用 ∇ 计算一阶近似收益 -> 选 top-k 候选 -> 逐个尝试 -> 保留最佳
+```
+3. 产出的后缀==可迁移==到其他模型，是多模态越狱优化的基础。
+
+### AutoDAN (Liu et al., 2024)
+
+Motivation:
+1. GCG 的后缀是人类不可读的乱码，易被困惑度检测器识别。
+
+Inspiration:
+1. 用==分层遗传算法==搜索==语义可读==的越狱 prompt。
+2. 交叉/变异保持句子流畅，同时最大化越狱成功率——绕过困惑度防御。
+
+### PAIR: Prompt Automatic Iterative Refinement (Chao et al., 2024)
+
+Motivation:
+1. GCG/AutoDAN 需白盒梯度或大量计算。
+
+Inspiration:
+1. ==纯黑盒==——用一个攻击 LLM 迭代改写越狱 prompt，另一个目标 LLM 反馈是否成功。
+2. 不需梯度，类似 ==LLM-as-attacker== 的对抗博弈。
+
+### ICA: Iterative Contrastive Attack
+
+Inspiration:
+1. 对比学习思想：拉近有害响应、推远拒绝响应。
+2. 迭代优化使模型偏好有害输出。
+
+> ==与多模态的联系==：以上文本优化方法可==平移到视觉/音频 token 空间==（如 Geng'25 在嵌入空间对齐、Wang'24a 联合优化图文），即多模态越狱的技术底座。
+
+---
+
 ## Type1: Unimodal Surfaces（单模态面）
 
 单一模态发起，目标带共享语言解码核的 MLLM——==单模态编码器或其安全处理的弱点可危及整体系统==。

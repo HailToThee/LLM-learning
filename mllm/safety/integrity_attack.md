@@ -8,6 +8,151 @@
 
 ---
 
+## 基础方法 A：梯度类对抗攻击（Gradient-based）
+
+> MLLM 的 Signal Perturbations（如 Dong'23、Chain of Attack）==本质都是这一族的变体==。
+> 核心思想：实时计算模型对当前输入的梯度，沿"最能误导模型"的方向逐步加微小扰动。
+> 关键特征：依赖梯度（白盒/可查询代理）、迭代优化、目标最大化损失、提升迁移性聚焦==改进梯度质量==。
+
+### FGSM (Goodfellow et al., 2015)
+
+Motivation:
+1. 深度网络对输入虽高度非线性，但==局部近似线性==——梯度变化越线性，扰动可行性越高。
+2. 基于泰勒一维展开，能否一步生成对抗样本？
+
+Inspiration:
+1. 单步沿梯度符号方向加扰动：
+$$\delta = \epsilon \cdot \text{sign}(\nabla_x \mathcal{L}(f_\theta(x), y))$$
+$$x_{\text{adv}} = x + \delta$$
+2. 快速但==迁移性弱==。
+
+### I-FGSM / PGD (Madry et al., 2017)
+
+Motivation:
+1. FGSM 单步攻击强度不足，无法刻画最坏情况。
+
+Inspiration:
+1. 多步迭代 + 投影回 $\epsilon$-ball：
+$$\delta_{t+1} = \Pi_\epsilon\big(\delta_t + \alpha \cdot \text{sign}(\nabla_\delta \mathcal{L}(f_\theta(x+\delta), y))\big)$$
+2. $\Pi_\epsilon$ 投影算子，$\alpha$ 步长，通常迭代 10~40 步。提升攻击强度，刻画最坏情况上界。
+
+### MI-FGSM (Dong et al., 2018)
+
+Motivation:
+1. PGD 易==陷入局部最优==，迁移性差。
+
+Inspiration:
+1. 引入==动量==累积历史梯度，==时间维度平滑==优化路径：
+$$g_{t+1} = \mu \cdot g_t + \frac{\nabla_\delta \mathcal{L}}{\|\nabla_\delta \mathcal{L}\|_1},\quad \delta_{t+1} = \delta_t + \alpha \cdot \text{sign}(g_{t+1})$$
+2. 跳出局部极值，提升迁移性。
+
+### DI-FGSM (Xie et al., 2019)
+
+Motivation:
+1. 固定输入下梯度对特定像素过敏感。
+
+Inspiration:
+1. ==输入多样性==（随机缩放/填充），模拟不同输入变换，使梯度更鲁棒。==空间/输入维度梯度多样化==。
+
+### TI-FGSM (Dong et al., 2019)
+
+Motivation:
+1. 梯度对特定像素位置过拟合，迁移到未对齐模型时失效。
+
+Inspiration:
+1. ==梯度卷积平滑==（Translation-Invariant），减少对特定像素位置的过拟合。
+2. 可==预计算梯度==，无需目标模型梯度即可迁移，利于黑盒。
+
+### Admix (Lin et al., 2020)
+
+Inspiration:
+1. ==混合多张图像==的梯度，增强泛化能力。
+
+### 速查表
+
+| 方法 | 核心技巧 | 目的 |
+|------|----------|------|
+| FGSM | 单步、符号梯度 | 快速，迁移性弱 |
+| I-FGSM/PGD | 多步迭代+投影 | 提升攻击强度 |
+| MI-FGSM | 动量累积 | 跳出局部极值，提升迁移性 |
+| DI-FGSM | 输入多样性 | 梯度更鲁棒 |
+| TI-FGSM | 梯度卷积平滑 | 减少像素过拟合 |
+| Admix | 混合多图梯度 | 增强泛化 |
+
+---
+
+## 基础方法 B：对抗补丁与通用扰动（Patch & UAP）
+
+> Discrete Triggers（如 Pandora's Box、SceneTAP）建立在这一族之上。
+> 与梯度扰动不同：==强调可复用性==——一次构造，跨输入通用；对抗补丁还可物理打印、局部叠加。
+
+### Adversarial Patch (Brown et al., 2017)
+
+Motivation:
+1. $L_p$ 约束的全局扰动在物理世界==难以实现==（打印/光照会破坏微小噪声）。
+2. 需要一个可随处粘贴、物理鲁棒的攻击。
+
+Inspiration:
+1. 学习一个==局部 patch $p$==，可叠加到图像任意位置：
+$$\max_{p}\ \mathbb{E}_{(x,\text{loc})}\big[\mathcal{L}(f(x \oplus_{\text{loc}} p), y_{\text{target}})\big]$$
+2. $p$ 与输入无关、与位置无关，可物理打印。
+
+### Universal Adversarial Perturbation / UAP (Moosavi-Dezfooli et al., 2017)
+
+Motivation:
+1. 逐样本优化代价高；能否==一个扰动欺骗大多数样本==？
+
+Inspiration:
+1. 求单一扰动 $\delta$ 使大部分数据被误分类：
+$$\min_\delta \|\delta\|_2\quad\text{s.t.}\ f(x+\delta) \ne f(x)\ \text{for most } x \in \mathcal{D}$$
+2. 揭示模型存在==通用表示漏洞==——正是综述 §4.2.5 指出的根因。
+
+---
+
+## 基础方法 C：生成式攻击（Generative model-based）
+
+> 用==生成器 $G$== 直接输出扰动，训练时用代理模型提供梯度，==推理时无需访问目标模型==，天然黑盒。
+
+### 通用框架
+
+```
+核心组件:
+  G: 生成器(U-Net/ResNet encoder-decoder)，输入干净图 x，输出扰动 δ=G(x)
+  f: 代理模型(白盒/多个)，提供梯度信号训练 G，推理时不需要
+  L: 损失函数
+
+基本流程:
+  1. 特征提取:  频域分解/多尺度/文本条件注入
+  2. 生成扰动:  δ=G(x), 施加范数约束 ||δ||∞≤ε
+  3. 构造样本:  x_adv = x + δ
+  4. 损失:      主攻击损失(最大化真实类分类损失) + 辅助对比/正则损失
+  5. 优化:      仅更新 G，f 冻结; 训练后 G 直接黑盒攻击
+```
+
+### CDA: Cross-Domain Attack
+
+Motivation:
+1. 跨域迁移（如分类 $\to$ 检测）时，如何最大化 gap？
+
+Inspiration:
+1. 降低对抗样本对真实类的置信度——最大化交叉熵损失：
+$$\max_\theta \mathcal{L}_{\text{CE}}(f(x_{\text{adv}}), y)$$
+2. 用 $L_p$ 范数限制扰动范围。
+3. **Relative Loss**（CDA 特有）：$\log \frac{f(x_{\text{adv}})_y}{f(x)_y}$，相对降低真实类置信度。
+
+### FACL-Attack / CLIP-Guided / HGN
+
+Inspiration:
+1. **FACL**：提取中频/低高频分量——==拉近==非关键特征（低/高频）、==推远==关键语义特征（中频）。
+2. **CLIP-Guided**：提取目标类别文本语义嵌入，跨模态对齐。
+3. **HGN**：分别送入浅层/深层代理模型。
+
+> 损失设计的一般规律：
+> - **Attract（拉近）**：对抗样本与干净样本在==非关键特征==上相似
+> - **Repel（推远）**：在==关键语义特征==上差异巨大
+
+---
+
 ## Type1: Signal Perturbations（信号扰动）
 
 对原始输入加==连续扰动==，诱导错误感知或下游推理错误。本质都是 PGD 系方法的变体，区别在**损失函数设计**——针对多模态特征表示，而非直接像素。

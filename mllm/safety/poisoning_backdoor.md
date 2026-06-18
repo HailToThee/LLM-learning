@@ -8,6 +8,59 @@
 
 ---
 
+## 基础方法：经典后门（Classical Backdoor）
+
+> 多模态后门（TrojVLM、BadToken、影子激活）都源于经典图像分类后门的范式。
+> 共同模式：干净输入正常，==触发器出现==时产出攻击者指定输出。
+
+### BadNets (Gu et al., 2017)
+
+Motivation:
+1. 供应链中模型可能被植入恶意行为，如何系统刻画？
+
+Inspiration:
+1. 训练时用==固定像素图案==触发器标记少量样本为目标类：
+$$\min_\theta\ \mathbb{E}_{(x,y)\sim\mathcal{D}_{\text{clean}}}\mathcal{L}(f(x),y) + \mathbb{E}_{(x\oplus t,y_t)\sim\mathcal{D}_{\text{poison}}}\mathcal{L}(f(x\oplus t), y_t)$$
+2. $t$ 为像素 patch 触发器，$y_t$ 为目标类。后门工作的奠基。
+
+### Blended Attack (Chen et al., 2017)
+
+Motivation:
+1. BadNets 的局部 patch 触发器==易被视觉检测==。
+
+Inspiration:
+1. 用==全局混合==（整图叠加一个图案/钥匙图）替代局部 patch：
+$$x_{\text{trigger}} = (1-\alpha)x + \alpha \cdot K$$
+2. $K$ 为钥匙图案，$\alpha$ 混合比例。触发器更隐蔽。
+
+### WaNet (Nguyen & Tran, 2021)
+
+Motivation:
+1. 像素 patch 和混合图案在像素空间==仍可见==。
+
+Inspiration:
+1. 用==图像变形场（warping）==作触发器，像素值不可见、仅空间结构变化：
+$$x_{\text{trigger}}(x,y) = x(x+\Delta s(x,y),\ y+\Delta t(x,y))$$
+2. $\Delta s, \Delta t$ 为平滑变形场。==不可见后门==的代表。
+
+### Clean-label Backdoor (Turner et al., 2019)
+
+Motivation:
+1. BadNets 需把毒化样本改为==目标类标签==，易被数据审核发现（标签与内容不符）。
+
+Inspiration:
+1. 毒化样本保留==正确标签==（clean-label），靠特征扰动而非标签操纵植入后门。
+2. 大幅降低被数据审核发现的风险。
+
+### LC / 三阶段后门
+
+Inspiration:
+1. **Sleeping**（休眠）/ **Compromise**（激活）/ **Unlearn**（遗忘）三阶段，模拟 APT 攻击，更难被一次性检测。
+
+> ==与多模态的联系==：经典后门的"局部 patch → 全局混合 → 不可见变形"隐蔽性进化路径，直接对应多模态后门从==显式图像触发器→影子激活（无触发器）==的进化。
+
+---
+
 ## Type1: Data Poisoning（数据投毒）
 
 操纵训练/微调数据，在良性输入下诱导恶意行为，利用图文对齐植入微妙偏移，==不明显损害模型效用==。
