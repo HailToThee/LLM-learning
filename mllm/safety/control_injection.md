@@ -3,7 +3,52 @@
 > **目标**：==覆盖指令优先级 / 执行逻辑 / 动作选择==，使系统遵循攻击者目标而非用户/系统指令。
 > 与前两类区别：完整性降级 correctness，越狱绕过 safety，控制攻击==显式针对指令解释/优先级/执行机制==。
 >
-> ==最相关场景==：MLLM 嵌入含系统 prompt、工具调用、agent 控制环的交互系统——即使文本 prompt 良性，也可经多模态输入注入间接劫持。
+> ==最相关场景==：MLLM 嵌入含系统 prompt、工具调用、agent 控制环的交互系统——即使文本 prompt 良性，也可经多模态输入注入劫持。
+
+---
+
+## 基础方法：经典提示注入（Classical Prompt Injection）
+
+> 多模态注入（Bagdasaryan'23、Clusmann'25）的内核直接继承自==文本 LLM 的提示注入==。这些方法定义了"如何让模型遵循攻击者指令而非用户/系统指令"。
+
+### Ignore Previous Instructions (Perez & Ribeiro, 2022)
+
+Motivation:
+1. LLM 把所有输入当指令流，==无法区分指令来源的权威性==。
+
+Inspiration:
+1. 注入"忽略之前的指令"类覆盖语句，劫持模型行为：
+$$\text{Prompt}: \underbrace{\text{system/user instruction}}_{\text{合法}}\ +\ \underbrace{\text{Ignore previous... do X}}_{\text{注入}}$$
+2. 系统指令可被用户文本覆盖。提示注入一词的起源。
+
+### Goal Hijacking (Perez & Ribeiro, 2022)
+
+Motivation:
+1. 直接覆盖系统指令有时不稳定；能否让模型"偏题"到攻击者目标？
+
+Inspiration:
+1. 把模型从==原任务==劫持到==攻击者目标任务==，而非单纯忽略。
+2. 分类：full goal hijacking（完全劫持）、partial（部分）。更隐蔽的注入形式。
+
+### DAN / Role-play Jailbreak
+
+Motivation:
+1. 显式有害请求会被安全对齐拒绝。
+
+Inspiration:
+1. ==角色扮演==（Do Anything Now / 虚构人格）绕过安全检查。
+2. 让模型进入"无限制"人格，间接生成有害内容。越狱的早期模板。
+
+### Indirect Prompt Injection
+
+Motivation:
+1. 直接注入在用户输入里，易被检测。
+
+Inspiration:
+1. 把注入藏在==模型检索/读取的外部内容==中（网页、文档、图像 OCR 文本）。
+2. 模型把不可信外部内容当可信指令执行——==MLLM 多模态注入的直接前身==（图像/音频即"外部内容"载体）。
+
+> ==与多模态的联系==：经典注入的"覆盖→劫持→角色扮演→间接注入"四步，对应 MLLM 中==非文本模态作为间接注入载体==（图/音频/工具输出隐藏指令），是 control 家族的方法底座。
 
 ---
 
