@@ -1,4 +1,4 @@
-# Integrity attack（完整性攻击）
+ # Integrity attack（完整性攻击）
 
 > **目标**：让模型输出**错误但看似合理**的内容（错误描述、幻觉、定向输出），且==不触发安全策略==。
 > 与越狱的区别：越狱针对 harmlessness；完整性针对 ==correctness / perceptual grounding==，在良性 prompt 下操作。
@@ -38,6 +38,47 @@ Motivation:
 Inspiration:
 1. targeted / untargeted 扰动即使==无 LLM 访问权限==也能操纵响应。
 2. 扰动只需作用于视觉编码器侧——漏洞根源在编码器，而非语言解码。
+
+given a surrogate model
+
+let $f_{\phi}$ be the vision encoder of the surrogate model, let $g_{\psi}$ be the text encoder of the surrogate model. let $p_{\theta}(x, c_{in})$ be the text decoder of the fusion model.
+
+由于目标是让$p$ 输出错误的文本$c_{\text{tar}}$, 而我们只有代理模型， 因此最终的优化应该是:
+图图匹配
+$$
+\arg\max_{\|x^{cle}-x^{adv}\|_p \le \epsilon} \; f_\varphi(x^{adv})^\top f_\varphi\big(h_\xi(c_{tar})\big)
+$$
+-->
+文文匹配：
+$$
+\arg\max_{\|x^{cle}-x^{adv}\|_p \le \epsilon} \; g_\psi\!\big(p_\theta(x^{adv}; c_{in})\big)^\top g_\psi(c_{tar})
+$$
+那么如何指导扰动的更新？
+使用期望：
+$$\nabla_x F(x) = \mathbb{E}\!\big[\,\delta^\top \nabla_x F(x) \cdot \delta\,\big], \qquad \mathbb{E}[\delta\delta^\top] = I
+$$
+
+```
+delta.shape = (n*1) = F.shape
+delta.T * F = (1*n) * (n*1) = (1*1) = scalar
+delta can be moved to the front.
+```
+therefore
+$$
+\nabla_{x^{adv}}\, g_\psi\!\big(p_\theta(x^{adv}; c_{in})\big)^\top g_\psi(c_{tar})
+\;\approx\;
+\frac{1}{N\sigma}\sum_{n=1}^{N}
+\Big[
+g_\psi\!\big(p_\theta(x^{adv}+\sigma\delta_n; c_{in})\big)^\top g_\psi(c_{tar})
+\;-\;
+g_\psi\!\big(p_\theta(x^{adv}; c_{in})\big)^\top g_\psi(c_{tar})
+\Big]\cdot \delta_n
+$$
+使用这个来指导 PGD 更新
+
+1. 
+
+
 
 ### Vision-LLMs Can Fool Themselves with Self-Generated Typographic Attacks (Qraitem et al., 2024)
 
