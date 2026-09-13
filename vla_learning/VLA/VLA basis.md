@@ -1,9 +1,6 @@
 From gradient policy to PPO: https://zhuanlan.zhihu.com/p/614115887
-
 Flow matching: https://zhuanlan.zhihu.com/p/4116861550
-
 DDPM: https://zhuanlan.zhihu.com/p/563661713
-
 DiT: https://zhuanlan.zhihu.com/p/711055614  https://github.com/facebookresearch/DiT
 
 ### Action data transformation:

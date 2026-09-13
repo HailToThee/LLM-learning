@@ -23,8 +23,7 @@ design a co-training framework
 - **VI（口头指令数据）**：后训练阶段加入，专家通过语言“遥控”机器人提供的高层示范。
 
 Arc?
-
-![Pasted image 20260826154056.png](pi0.5.png)
+![[Pasted image 20260826154056.png]]
 
 分层推理
 $$π_θ​(a_{t:t+H}​,\hat{l}∣o_t​,ℓ)=π_θ​(a_{t:t+H}​∣o_t​,\hat{l})⋅π_θ​(\hat{l}∣o_t​,ℓ)$$
@@ -126,11 +125,11 @@ $$
 **最终的联合损失函数（公式 4 结合公式 3）：**
 由于连续动作的流匹配无法直接计算对数似然，论文推导出它的证据下界（ELBO），最终整体的优化目标等价于：
 
-$$
+\[
 \mathcal{L} = \underbrace{-\log \pi_\theta(\hat{\ell}|\mathbf{o}_t, \ell)}_{\text{子任务交叉熵}} 
 + \underbrace{-\log \pi_\theta(a^\ell_{t:t+H}|\mathbf{o}_t, \ell, \hat{\ell})}_{\text{离散动作交叉熵 (FAST)}} 
 + \underbrace{\alpha \cdot \mathbb{E}_{\eta, \omega} \left[ \left\| \omega - \mathbf{a}_{1:H} - f_\theta(\mathbf{a}_{1:H}^{\eta, \omega}, I_t, \mathbf{o}_t, \ell, \hat{\ell}) \right\|^2 \right]}_{\text{流匹配 MSE（连续动作）}}
-$$
+\]
 
 **详细拆解这个流匹配项（最关键的部分）：**
 
